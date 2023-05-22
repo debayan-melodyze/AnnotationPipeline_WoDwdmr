@@ -1,6 +1,6 @@
 from config import firebase_config
 from lyrics_update import LyricsUpdate
-from io import FireBase
+from inout import FireBase
 from datetime import datetime
 from os import listdir
 from os.path import isfile, join

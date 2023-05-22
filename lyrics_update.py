@@ -1,6 +1,6 @@
 import json
 from config import firebase_config
-from io import FireBase
+from inout import FireBase
 
 class LyricsUpdate:
     def __init__(self, annotator_id):
