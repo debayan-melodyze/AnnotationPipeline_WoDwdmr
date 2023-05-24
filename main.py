@@ -7,22 +7,22 @@ class NewAnnotation():
         song_name = "Sweet Child O Mine"
         language = "english"
         category = "evergreen"
-        thumbnail_path = "/Users/debayanmukherjee/Desktop/MUSIC_PROJECTS/Melodyze\ Promo\ -\ Sweet\ Child/Annotation_FIles/Thumbnail/sweet_child_thumbnail.jpg"
+        thumbnail_path = "C:\\Melodyze_Projects\\Annotation Data\\Annotation_FIles Sweet Child\\Annotation_FIles Sweet Child\\Thumbnail\\sweet_child_thumbnail.jpg"
         singer = ""
         lyricist = ""
         composer = ""
         producer = "Guns N' Roses"
         annotator_ID = "arghyadeep0001"
-        lyrics_json_path = ""
-        genre = "rock"
+        lyrics_json_path = "C:\\Melodyze_Projects\\Annotation Data\\Annotation_FIles Sweet Child\\Annotation_FIles Sweet Child\\Lyrics\\125-piano.json"
+        genre = "piano"
         tempo = "125"
         daw_scale = "C_sharp"
 
         # Please note file names should be scale names only
         # Scale list: A, A_sharp, B, C, C_sharp, D, D_sharp, E, F, F_sharp, G, G_sharp
         # File names : A.mp3, A_sharp.mp3, ...
-        multiscale_audio_path = "/Users/debayanmukherjee/Desktop/MUSIC_PROJECTS/Melodyze\ Promo\ -\ Sweet\ Child/Annotation_FIles/Rock_Files"
-        daw_project_path = "/Users/debayanmukherjee/Desktop/MUSIC_PROJECTS/Melodyze\ Promo\ -\ Sweet\ Child/Annotation_FIles/Sweet_Child_DAW.logicx"
+        multiscale_audio_path = "C:\\Melodyze_Projects\\Annotation Data\\Annotation_FIles Sweet Child\\Annotation_FIles Sweet Child\\Piano_Files\\"
+        daw_project_path = "C:\\Melodyze_Projects\\Annotation Data\Annotation_FIles Sweet Child\\Annotation_FIles Sweet Child\\Sweet_Child_DAW.logicx.zip"
         # Possible values : "logic", "fl_studio", "cubase", ...
         daw_name = "logic"
 

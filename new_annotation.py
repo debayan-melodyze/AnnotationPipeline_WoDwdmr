@@ -29,13 +29,15 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
         self.genre = genre
         self.tempo = tempo
         self.scale = scale
-        self.tempo_list = [int(tempo) + i for i in range(-10, 10, 5)]
+        self.tempo_list = [int(tempo) + i for i in range(-10, 11, 5) if i != 0]
+        self.tempo_list.insert(0, int(tempo))
         self.multiscale_audio_path = multiscale_audio_path
         self.daw_project_path = daw_project_path
         self.daw_name = daw_name
         self.lyrics_utils = LyricsUpdate(annotator_ID)
-
         self.temp_tempo_changed_audio_file = "Annotator_Temp\\" + annotator_ID + "\\temp_audio.mp3"
+        if not os.path.exists("Annotator_Temp\\" + annotator_ID):
+            os.makedirs("Annotator_Temp\\" + annotator_ID)
 
     def remove_temp_files(self):
         if os.name == 'nt':
@@ -52,20 +54,25 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
                                                                  self.genre, self.tempo, self.scale)
         song_id = ''
         scale_vs_audio_file = self.read_all_scale_audio_files()
+        version_no = 0
         for scale in scale_vs_audio_file.keys():
+            if ".mp3" not in scale:
+                continue
             original_audio_file = scale_vs_audio_file[scale]
+            scale = scale.split(".")[0]
             original_tempo = int(self.tempo)
             for tempo in self.tempo_list:
                 # create transformer
                 tfm = sox.Transformer()
-                tempo_factor = original_tempo / tempo
+                tempo_factor = tempo / original_tempo
                 tfm.tempo(tempo_factor)
                 tfm.build_file(original_audio_file, self.temp_tempo_changed_audio_file)
 
                 song_id, is_Existing = self.get_song_id()
                 annotation_id = self.insert_new_annotation_DB(song_id, is_Existing, self.temp_tempo_changed_audio_file,
-                                                              scale, str(tempo), project_file_location_storage, self.daw_name)
-
+                                                              scale, str(tempo), self.genre, project_file_location_storage,
+                                                              self.daw_name, version_no)
+                version_no = version_no + 1
                 self.insert_new_song_genre_list(song_id)
                 self.insert_new_song_tempo_list(song_id)
                 self.insert_new_song_scale_list(song_id)
@@ -92,21 +99,22 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
 
     def upload_project_file(self, project_path, song_name, genre, tempo, scale):
         file_name = "_".join([song_name, genre, str(tempo), scale])
-        file_ext = project_path.split("\\.")[-1]
+        file_ext = project_path.split(".")[-1]
         file_full_location_storage = "DawProjects/" + file_name + "." + file_ext
         self.fb.storage.child(file_full_location_storage).put(project_path)
         return file_full_location_storage
 
-    def insert_new_annotation_DB(self, song_id, is_Existing, local_audio_file, scale, tempo,
-                                 project_file_location_storage, daw_name):
+    def insert_new_annotation_DB(self, song_id, is_Song_Existing, local_audio_file, scale, tempo, genre,
+                                 project_file_location_storage, daw_name, version_no):
 
-        if is_Existing is True:
+        is_genre_existing = False
+        if is_Song_Existing is True:
             existing_song_annotation = self.fb.db.child("Annotated_Song").order_by_child("master_song_id").equal_to(song_id).get()
             highest_annotation_no = 0
-            lyrics_in_exact_user_tempo_flag = False
+            lyrics_in_db_in_exact_user_tempo_genre_flag = False
 
-            tempo = None
-            lyrics_path = None
+            db_tempo = None
+            db_lyrics_path = None
 
             for annotation in existing_song_annotation:
                 annotation_val = annotation.val()
@@ -115,28 +123,33 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
                 if annotation_id_no > highest_annotation_no:
                     highest_annotation_no = annotation_id_no
 
-                if lyrics_in_exact_user_tempo_flag is False:
-                    tempo = int(annotation_val["master_tempo"])
-                    lyrics_path = annotation_val["lyrics_with_timeline_file_location"]
-                    if tempo is self.tempo:
-                        lyrics_in_exact_user_tempo_flag = True
+                if lyrics_in_db_in_exact_user_tempo_genre_flag is False:
+                    db_tempo = int(annotation_val["master_tempo"])
+                    db_genre = annotation_val["master_genre"]
+                    if db_genre == genre:
+                        is_genre_existing = True
+                        new_annotation_no = annotation_id_no
+                    if db_tempo is int(tempo) and db_genre == genre:
+                        lyrics_in_db_in_exact_user_tempo_genre_flag = True
+                        db_lyrics_path = annotation_val["lyrics_with_timeline_file_location"]
 
-            new_annotation_no = highest_annotation_no + 1
+            if not is_genre_existing:
+                new_annotation_no = highest_annotation_no + 1
+
             new_song_annotation_id = song_id + "_annotation_" + str(new_annotation_no)
 
-            if self.lyrics_json_path != "":
-                new_lyrics_file, new_lyrics = self.lyrics_utils.store_updated_lyrics_from_local(self.lyrics_json_path, self.tempo, song_id, self.song_name)
+            if lyrics_in_db_in_exact_user_tempo_genre_flag is True:
+                new_lyrics_file = db_lyrics_path
             else:
-                if lyrics_in_exact_user_tempo_flag is True:
-                    new_lyrics_file = lyrics_path
-                else:
-                    new_lyrics_file, new_lyrics = self.lyrics_utils.store_updated_lyrics_from_storage(lyrics_path, tempo, self.tempo, song_id, self.song_name)
+                # self.tempo is the root tempo in which manual lyrics file is provided
+                # tempo is the current tempo
+                new_lyrics_file, new_lyrics = self.lyrics_utils.store_updated_lyrics_from_local(self.lyrics_json_path, self.tempo, tempo, song_id, self.song_name, genre)
         else:
             new_song_annotation_id = song_id + "_annotation_1"
-            new_lyrics_file = "Lyrics/" + "_".join([song_id, self.song_name, self.tempo]) + ".json"
+            new_lyrics_file = "Lyrics/" + "_".join([song_id, self.song_name, self.tempo, self.genre]) + ".json"
             self.fb.storage.child(new_lyrics_file).put(self.lyrics_json_path)
 
-        aud_storage_path = self.upload_audio_file(local_audio_file, song_id, new_song_annotation_id + "_v_0", self.genre,
+        aud_storage_path = self.upload_audio_file(local_audio_file, song_id, new_song_annotation_id + "_v_" + str(version_no), self.genre,
                                tempo, scale)
 
 
@@ -144,21 +157,21 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
         data = {"annotated_song_created_on": now.strftime("%d/%m/%Y %H:%M:%S"),
                 "annotated_song_file_path": aud_storage_path,
                 "annotated_song_id": new_song_annotation_id,
-                "annotated_song_id_version_id": new_song_annotation_id + "_v_0",
+                "annotated_song_id_version_id": new_song_annotation_id + "_v_" + str(version_no),
                 "annotated_song_status": "active",
                 "lyrics_with_timeline_file_location": new_lyrics_file,
                 "master_annotator_id": self.annotator_ID,
-                "master_genre": self.genre,
+                "master_genre": genre,
                 "master_scale": scale,
                 "master_song_id": song_id,
-                "master_song_id_genre_scale_tempo": "_".join([song_id, self.genre, scale, str(self.tempo)]),
-                "master_song_id_scale_tempo": "_".join([song_id, scale, str(self.tempo)]),
-                "master_song_id_genre_version": "_".join([song_id, self.genre, "v_0"]),
+                "master_song_id_genre_scale_tempo": "_".join([song_id, genre, scale, str(tempo)]),
+                "master_song_id_scale_tempo": "_".join([song_id, scale, str(tempo)]),
+                "master_song_id_genre_version": "_".join([song_id, genre, "v_" + str(version_no)]),
                 "master_tempo": tempo,
-                "version_id": "v_0",
+                "version_id": "v_" + str(version_no),
                 "project_file_location_storage": project_file_location_storage,
                 "daw_name": daw_name}
-        self.fb.db.child("Annotated_Song").child(new_song_annotation_id + "_v_0").set(data)
+        self.fb.db.child("Annotated_Song").child(new_song_annotation_id + "_v_" + str(version_no)).set(data)
         return new_song_annotation_id
 
 
