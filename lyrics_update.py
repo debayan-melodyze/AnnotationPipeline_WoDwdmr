@@ -49,6 +49,12 @@ class LyricsUpdate:
         updated_lyrics = lyrics
 
         factor = float(original_tempo) / float(user_tempo)
+        for index, line in enumerate(lyrics["countdown"]["data"]):
+            updated_start_time = self.convert_time_to_mili_seconds(lyrics["countdown"]["data"][index]["start_time"]) * factor
+            updated_end_time = self.convert_time_to_mili_seconds(lyrics["countdown"]["data"][index]["end_time"]) * factor
+            updated_lyrics["countdown"]["data"][index]["start_time"] = self.convert_mili_seconds_to_time(updated_start_time)
+            updated_lyrics["countdown"]["data"][index]["end_time"] = self.convert_mili_seconds_to_time(updated_end_time)
+        updated_lyrics["tempo"] = user_tempo
         for index, line in enumerate(lyrics["lyrics"]["data"]):
             updated_start_time = self.convert_time_to_mili_seconds(lyrics["lyrics"]["data"][index]["start_time"]) * factor
             updated_end_time = self.convert_time_to_mili_seconds(lyrics["lyrics"]["data"][index]["end_time"]) * factor

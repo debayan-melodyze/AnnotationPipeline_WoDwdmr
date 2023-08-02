@@ -138,12 +138,12 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
 
             new_song_annotation_id = song_id + "_annotation_" + str(new_annotation_no)
 
-            if lyrics_in_db_in_exact_user_tempo_genre_flag is True:
-                new_lyrics_file = db_lyrics_path
-            else:
+            # if lyrics_in_db_in_exact_user_tempo_genre_flag is True:
+            #     new_lyrics_file = db_lyrics_path
+            # else:
                 # self.tempo is the root tempo in which manual lyrics file is provided
                 # tempo is the current tempo
-                new_lyrics_file, new_lyrics = self.lyrics_utils.store_updated_lyrics_from_local(self.lyrics_json_path, self.tempo, tempo, song_id, self.song_name, genre)
+            new_lyrics_file, new_lyrics = self.lyrics_utils.store_updated_lyrics_from_local(self.lyrics_json_path, self.tempo, tempo, song_id, self.song_name, genre)
         else:
             new_song_annotation_id = song_id + "_annotation_1"
             new_lyrics_file = "Lyrics/" + "_".join([song_id, self.song_name, self.tempo, self.genre]) + ".json"
