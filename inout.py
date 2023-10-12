@@ -3,6 +3,7 @@ import pyrebase
 class FireBase:
     def __init__(self, firebase_config):
         self.db_config = pyrebase.initialize_app(firebase_config)
+        self.auth = self.db_config.auth()
         self.db = self.db_config.database()
         self.storage = self.db_config.storage()
 

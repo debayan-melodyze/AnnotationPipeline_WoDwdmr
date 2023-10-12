@@ -7,7 +7,10 @@ from os.path import isfile, join
 import os
 import shutil
 import sox
-
+import subprocess
+import soundfile as sf
+import pyrubberband as prb
+from scipy.io.wavfile import write
 
 class InsertNewAnnotationIntoDB_WoDwdmr:
 
@@ -35,6 +38,7 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
         self.daw_project_path = daw_project_path
         self.daw_name = daw_name
         self.lyrics_utils = LyricsUpdate(annotator_ID)
+        self.temp1_tempo_changed_audio_file = "Annotator_Temp\\" + annotator_ID + "\\temp1_audio.mp3"
         self.temp_tempo_changed_audio_file = "Annotator_Temp\\" + annotator_ID + "\\temp_audio.mp3"
         if not os.path.exists("Annotator_Temp\\" + annotator_ID):
             os.makedirs("Annotator_Temp\\" + annotator_ID)
@@ -48,7 +52,7 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
     def route(self):
         self.insert_new_language()
         self.insert_new_category()
-        self.insert_new_BGM_filter()
+        # self.insert_new_BGM_filter()
         self.insert_new_tempo()
         project_file_location_storage = self.upload_project_file(self.daw_project_path, self.song_name,
                                                                  self.genre, self.tempo, self.scale)
@@ -62,21 +66,41 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
             scale = scale.split(".")[0]
             original_tempo = int(self.tempo)
             for tempo in self.tempo_list:
-                # create transformer
-                tfm = sox.Transformer()
+
                 tempo_factor = tempo / original_tempo
-                tfm.tempo(tempo_factor)
-                tfm.build_file(original_audio_file, self.temp_tempo_changed_audio_file)
+
+                if os.path.exists(self.temp1_tempo_changed_audio_file):
+                    os.remove(self.temp1_tempo_changed_audio_file)
+                if os.path.exists(self.temp_tempo_changed_audio_file):
+                    os.remove(self.temp_tempo_changed_audio_file)
+                # Pyrubberband
+                y, sr = sf.read(original_audio_file)
+                y_stretch = prb.time_stretch(y, sr, tempo_factor)
+                write(self.temp1_tempo_changed_audio_file, sr, y_stretch)
+                ffmpeg_command = f'ffmpeg -i {self.temp1_tempo_changed_audio_file} -vn -ar 44100 -ac 2 -b:a 192k ' \
+                                 f'{self.temp_tempo_changed_audio_file}'
+                subprocess.run(ffmpeg_command, shell=True, check=True)
+
+                # Sox cmd line subprocess
+                # command = ['sox', original_audio_file, '-C', '320', self.temp_tempo_changed_audio_file, 'tempo', '-m',
+                #            '-q', str(tempo_factor)]
+                # subprocess.run(command)
+
+                # sox api
+                # create transformer
+                # tfm = sox.Transformer()
+                # tfm.tempo(tempo_factor)
+                # tfm.build_file(original_audio_file, self.temp_tempo_changed_audio_file)
 
                 song_id, is_Existing = self.get_song_id()
                 annotation_id = self.insert_new_annotation_DB(song_id, is_Existing, self.temp_tempo_changed_audio_file,
                                                               scale, str(tempo), self.genre, project_file_location_storage,
                                                               self.daw_name, version_no)
                 version_no = version_no + 1
-                self.insert_new_song_genre_list(song_id)
-                self.insert_new_song_tempo_list(song_id)
-                self.insert_new_song_scale_list(song_id)
-                self.insert_new_genre_tempo_list(song_id)
+                # self.insert_new_song_genre_list(song_id)
+                # self.insert_new_song_tempo_list(song_id)
+                # self.insert_new_song_scale_list(song_id)
+                # self.insert_new_genre_tempo_list(song_id)
 
 
         self.remove_temp_files()
@@ -98,6 +122,8 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
         return audio_path_mp3
 
     def upload_project_file(self, project_path, song_name, genre, tempo, scale):
+        if project_path == "":
+            return ""
         file_name = "_".join([song_name, genre, str(tempo), scale])
         file_ext = project_path.split(".")[-1]
         file_full_location_storage = "DawProjects/" + file_name + "." + file_ext
@@ -208,12 +234,15 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
     def insert_new_song_DB(self):
         existing_all_songs = self.fb.db.child("Song_Master").get()
         highest_song_id_no = 0
-        for song in existing_all_songs:
-            song_val = song.val()
-            song_id = song_val["song_id"]
-            song_id_no = int(song_id.split("_")[1])
-            if song_id_no > highest_song_id_no:
-                highest_song_id_no = song_id_no
+        dir()
+        if existing_all_songs.pyres is not None:
+            for song in existing_all_songs:
+                song_val = song.val()
+                song_id = song_val["song_id"]
+                song_id_no = int(song_id.split("_")[1])
+                if song_id_no > highest_song_id_no:
+                    highest_song_id_no = song_id_no
+
         new_song_id_no = highest_song_id_no + 1
         new_song_id = "song_" + str(new_song_id_no)
 
@@ -230,7 +259,7 @@ class InsertNewAnnotationIntoDB_WoDwdmr:
                 "song_name": self.song_name,
                 "song_original_genre": self.genre,
                 "song_original_scale": self.scale,
-                "song_original_tempo": self.tempo,
+                "song_original_tempo": self.tempo_list[0],
                 "song_status": "active",
                 "song_thumbnail_file_location": new_thumbnail_path,
                 "singer": self.singer,

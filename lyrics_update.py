@@ -72,6 +72,6 @@ class LyricsUpdate:
     def convert_mili_seconds_to_time(self, mili_seconds):
         mili_seconds = int(round(mili_seconds))
         seconds = mili_seconds // 1000
-        return str(seconds // 60) + ":" + str(seconds % 60)  + ":" + str(mili_seconds % 1000)
+        return str(seconds // 60) + ":" + str(seconds % 60).zfill(2) + ":" + str(mili_seconds % 1000).zfill(3)
 
 
